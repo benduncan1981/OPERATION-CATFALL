@@ -1,61 +1,81 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en-GB">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Toothbrush Timer Game</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>CAT INVADERS — Toothbrush Timer</title>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: black;
-  font-family: sans-serif;
+html,body{
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:#000;
+  font-family:"Segoe UI",sans-serif;
+  color:white;
+  text-transform:uppercase;
 }
-
-canvas {
-  display: block;
+#game{
+  position:fixed;
+  inset:0;
 }
-
-#ui {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  pointer-events: none;
-  color: white;
-  font-weight: bold;
+.hud{
+  position:fixed;
+  top:10px;
+  left:10px;
+  right:10px;
+  display:flex;
+  justify-content:space-between;
+  z-index:10;
 }
-
-#topHUD {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 16px;
-  font-size: 18px;
+.hud-box{
+  background:rgba(0,0,0,0.6);
+  padding:8px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,0.2);
+  font-weight:700;
 }
-
-#centerTimer {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+#hitText{
+  position:fixed;
+  left:50%;
+  bottom:22%;
+  transform:translateX(-50%);
+  font-size:2.4rem;
+  font-weight:900;
+  color:#ff4f6d;
+  text-shadow:0 0 20px #ff4f6d;
+  display:none;
+  z-index:20;
 }
-
-#bottomUI {
-  position: fixed;
-  bottom: 10px;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  pointer-events: auto;
+#centerText{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  font-size:3rem;
+  font-weight:900;
+  color:#ffe66d;
+  text-shadow:0 0 20px #ffe66d;
+  display:none;
+  z-index:20;
 }
-
-button {
-  padding: 10px 16px;
-  font-size: 16px;
-  border: none;
-  border-radius: 6px;
+.controls{
+  position:fixed;
+  bottom:10px;
+  left:10px;
+  right:10px;
+  display:flex;
+  justify-content:space-between;
+  z-index:10;
+}
+.btn{
+  padding:10px 18px;
+  border-radius:999px;
+  border:0;
+  font-weight:900;
+  cursor:pointer;
+  background:linear-gradient(135deg,#ff2f92,#ff8a00);
+  color:#000;
 }
 </style>
 </head>
@@ -64,256 +84,330 @@ button {
 
 <canvas id="game"></canvas>
 
-<div id="ui">
-  <div id="topHUD">
-    <div>PILOT / HOLLIE</div>
-    <div id="centerTimer">2:00</div>
+<div class="hud">
+  <div class="hud-box">
+    <div>PILOT</div>
+    <div>HOLLIE</div>
+  </div>
+  <div class="hud-box">
+    <div>TIMER</div>
+    <div id="timer">02:00</div>
+  </div>
+  <div class="hud-box">
+    <div>SCORE</div>
     <div id="score">0</div>
   </div>
 </div>
 
-<div id="bottomUI">
-  <button id="startBtn">START</button>
-  <button id="resetBtn">RESET</button>
+<div id="hitText">HIT!</div>
+<div id="centerText">3</div>
+
+<div class="controls">
+  <button id="startBtn" class="btn">START</button>
+  <button id="resetBtn" class="btn">RESET</button>
 </div>
 
-<audio id="music" src="audio/EVEN FASTER.wav" loop></audio>
-
 <script>
+/* SPRITES — all loaded from ROOT */
+const spritePaths = {
+  background: "background.png",
+  idle_front: "idle_front.png",
+  idle_left: "idle_left.png",
+  idle_right: "idle_right.png",
+  hit: "hit_reaction_comical.png",
+  Cat1: "Cat1.png",
+  Cat2: "Cat2.png",
+  Cat3: "Cat3.png",
+  Cat4: "Cat4.png"
+};
+
+const sprites = {};
+let toLoad = Object.keys(spritePaths).length;
+let loaded = false;
+
+for (const k in spritePaths){
+  const img = new Image();
+  img.src = spritePaths[k];
+  img.onload = () => { toLoad--; if(toLoad===0) loaded=true; };
+  sprites[k] = img;
+}
+
+/* MUSIC — also loaded from ROOT */
+const music = new Audio("EVEN FASTER.wav");
+music.loop = true;
+music.volume = 0.7;
+
+/* CANVAS */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
-let W, H, scale;
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-  scale = Math.min(W / 800, H / 600);
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
-window.addEventListener("resize", resize);
+window.addEventListener("resize",resize);
 resize();
 
-const assets = {
-  bg: load("assets/sprites/background.png"),
-  idle_front: load("assets/sprites/idle_front.png"),
-  idle_left: load("assets/sprites/idle_left.png"),
-  idle_right: load("assets/sprites/idle_right.png"),
-  hit: load("assets/sprites/hit_reaction_comical.png"),
-  cats: [
-    load("assets/sprites/Cat1.png"),
-    load("assets/sprites/Cat2.png"),
-    load("assets/sprites/Cat3.png"),
-    load("assets/sprites/Cat4.png"),
-  ]
+/* GAME STATE */
+const TOTAL_TIME = 120;
+const SCORE_PER_SECOND = 10;
+const SCORE_PER_HIT = 5;
+
+let running = false;
+let missionTime = TOTAL_TIME;
+let score = 0;
+
+let enemies = [];
+let spawnTimer = 0;
+
+let shakeTime = 0;
+
+/* LIMITS */
+function leftLimit(){ return canvas.width * 0.10; }
+function rightLimit(){ return canvas.width * 0.90; }
+
+/* HOLLIE */
+const hollie = {
+  x: canvas.width/2,
+  y: 0,
+  direction: 1,
+  speed: 120,
+  targetX: canvas.width/2,
+  mode: "idle",
+  modeTimer: 0,
+  changeTimer: 0,
+  scale: canvas.width < 600 ? 0.18 : 0.22
 };
 
-function load(src) {
-  const img = new Image();
-  img.src = src;
-  return img;
+/* RANDOM */
+function rand(min,max){ return min + Math.random()*(max-min); }
+
+/* CATS */
+const catKeys = ["Cat1","Cat2","Cat3","Cat4"];
+
+function spawnCat(){
+  const key = catKeys[Math.floor(Math.random()*catKeys.length)];
+  enemies.push({
+    x: canvas.width * (0.10 + Math.random()*0.80),
+    y: -40,
+    vy: 140 + Math.random()*120,
+    spriteKey: key,
+    scale: canvas.width < 600 ? 0.18 : 0.22
+  });
 }
 
-const music = document.getElementById("music");
+function drawCat(e){
+  const img = sprites[e.spriteKey];
+  if(!img || !img.complete) return;
 
-let game = resetState();
+  const w = img.width * e.scale;
+  const h = img.height * e.scale;
 
-function resetState() {
-  return {
-    running: false,
-    startDelay: 3,
-    time: 120,
-    score: 0,
-    hollie: {
-      x: W / 2,
-      targetX: W / 2,
-      speed: 100,
-      sprite: "idle_front",
-      hitTimer: 0,
-      moveTimer: 0
-    },
-    cats: [],
-    spawnTimer: 0,
-    shake: 0,
-    done: false
-  };
+  ctx.drawImage(img, e.x - w/2, e.y - h/2, w, h);
 }
 
-document.getElementById("startBtn").onclick = () => {
-  game = resetState();
-  game.running = true;
-  music.currentTime = 0;
-  music.play().catch(()=>{});
-};
+/* DRAW HOLLIE */
+function drawHollie(){
+  let img;
 
-document.getElementById("resetBtn").onclick = () => {
-  music.pause();
-  game = resetState();
-};
-
-function spawnCat() {
-  const x = rand(W * 0.1, W * 0.9);
-  const speed = rand(140, 260);
-  const img = assets.cats[Math.floor(Math.random()*4)];
-  game.cats.push({ x, y: -50, speed, img });
-}
-
-function update(dt) {
-  if (!game.running) return;
-
-  if (game.startDelay > 0) {
-    game.startDelay -= dt;
-    return;
-  }
-
-  if (game.time <= 0) {
-    game.done = true;
-    music.pause();
-    return;
-  }
-
-  game.time -= dt;
-  game.score += dt * 10;
-
-  const h = game.hollie;
-
-  // Movement target logic
-  h.moveTimer -= dt;
-  if (h.moveTimer <= 0) {
-    h.targetX = rand(W * 0.1, W * 0.9);
-    h.speed = rand(80, 180);
-    h.moveTimer = rand(0.4, 1.4);
-  }
-
-  let dx = h.targetX - h.x;
-
-  if (Math.abs(dx) < 10) {
-    if (Math.random() < 0.02) {
-      h.moveTimer = rand(0.2, 0.5);
-    }
-    h.sprite = "idle_front";
+  if(hollie.mode==="hit"){
+    img = sprites.hit;
   } else {
-    const dir = Math.sign(dx);
-    h.x += dir * h.speed * dt;
-
-    if (dir > 0) h.sprite = "idle_right";
-    else h.sprite = "idle_left";
+    if(hollie.direction > 0.1) img = sprites.idle_right;
+    else if(hollie.direction < -0.1) img = sprites.idle_left;
+    else img = sprites.idle_front;
   }
 
-  // Cats
-  game.spawnTimer -= dt;
-  if (game.spawnTimer <= 0) {
+  if(!img || !img.complete) return;
+
+  const w = img.width * hollie.scale;
+  const h = img.height * hollie.scale;
+
+  hollie.y = canvas.height - h - 20;
+
+  ctx.drawImage(img, hollie.x-w/2, hollie.y, w, h);
+}
+
+/* RANDOM MOVEMENT */
+function updateHollie(dt){
+  hollie.changeTimer -= dt;
+  if(hollie.changeTimer <= 0){
+    hollie.changeTimer = rand(0.4,1.4);
+    hollie.targetX = rand(leftLimit(), rightLimit());
+    hollie.speed = rand(80,180);
+  }
+
+  const dx = hollie.targetX - hollie.x;
+  if(Math.abs(dx) < 4){
+    hollie.direction = 0;
+  } else {
+    hollie.direction = dx > 0 ? 1 : -1;
+    hollie.x += hollie.direction * hollie.speed * dt;
+  }
+
+  if(hollie.x < leftLimit()) hollie.x = leftLimit();
+  if(hollie.x > rightLimit()) hollie.x = rightLimit();
+}
+
+/* UPDATE */
+function update(dt){
+  if(!running) return;
+
+  missionTime -= dt;
+  if(missionTime < 0) missionTime = 0;
+
+  const t = Math.floor(missionTime);
+  const m = Math.floor(t/60);
+  const s = t%60;
+  document.getElementById("timer").textContent =
+    `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+
+  score += SCORE_PER_SECOND * dt;
+  if(score < 0) score = 0;
+  document.getElementById("score").textContent = Math.floor(score);
+
+  updateHollie(dt);
+
+  spawnTimer -= dt;
+  if(spawnTimer <= 0){
     spawnCat();
-    game.spawnTimer = rand(0.3, 0.7);
+    spawnTimer = 0.7;
   }
 
-  const hollieY = H - 120 * scale;
-
-  game.cats.forEach(cat => {
-    cat.y += cat.speed * dt;
-
-    if (cat.y >= hollieY) {
-      hit();
-      cat.dead = true;
+  if(hollie.mode==="hit"){
+    hollie.modeTimer -= dt;
+    if(hollie.modeTimer <= 0){
+      hollie.mode="idle";
+      document.getElementById("hitText").style.display="none";
     }
-  });
-
-  game.cats = game.cats.filter(c => !c.dead);
-
-  if (h.hitTimer > 0) {
-    h.hitTimer -= dt;
-    h.sprite = "hit";
   }
 
-  if (game.shake > 0) {
-    game.shake -= dt;
+  const hitLine = hollie.y + 20;
+
+  for(let i=enemies.length-1;i>=0;i--){
+    const e = enemies[i];
+    e.y += e.vy*dt;
+
+    if(e.y >= hitLine){
+      enemies.splice(i,1);
+
+      score -= SCORE_PER_HIT;
+      if(score < 0) score = 0;
+      document.getElementById("score").textContent = Math.floor(score);
+
+      hollie.mode="hit";
+      hollie.modeTimer=0.3;
+      document.getElementById("hitText").style.display="block";
+
+      shakeTime=0.2;
+      continue;
+    }
+
+    if(e.y > canvas.height + 80){
+      enemies.splice(i,1);
+    }
   }
 
-  game.score = Math.max(0, game.score);
+  if(missionTime <= 0){
+    endMission();
+  }
 }
 
-function hit() {
-  game.hollie.hitTimer = 0.3;
-  game.score -= 5;
-  game.shake = 0.2;
-}
+/* RENDER */
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-function draw() {
+  let ox=0, oy=0;
+  if(shakeTime>0){
+    shakeTime -= 1/60;
+    ox = (Math.random()*2-1)*6;
+    oy = (Math.random()*2-1)*6;
+  }
   ctx.save();
+  ctx.translate(ox,oy);
 
-  if (game.shake > 0) {
-    ctx.translate(rand(-5,5), rand(-5,5));
+  const bg = sprites.background;
+  if(bg && bg.complete){
+    const scale = Math.max(canvas.width/bg.width, canvas.height/bg.height);
+    const bw = bg.width*scale;
+    const bh = bg.height*scale;
+    ctx.drawImage(bg, (canvas.width-bw)/2, (canvas.height-bh)/2, bw, bh);
   }
 
-  ctx.drawImage(assets.bg, 0, 0, W, H);
-
-  // Cats
-  game.cats.forEach(cat => {
-    drawSprite(cat.img, cat.x, cat.y, 50);
-  });
-
-  // Hollie
-  const h = game.hollie;
-  let img = assets[h.sprite];
-  const y = H - 100 * scale;
-  drawSprite(img, h.x, y, 90);
-
-  // HIT text
-  if (h.hitTimer > 0) {
-    ctx.fillStyle = "red";
-    ctx.font = "bold 40px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("HIT!", h.x, y - 80);
-  }
+  drawHollie();
+  enemies.forEach(drawCat);
 
   ctx.restore();
-
-  // DONE
-  if (game.done) {
-    ctx.fillStyle = "white";
-    ctx.font = "bold 60px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("DONE!", W/2, H/2);
-  }
-
-  // Countdown text
-  if (game.startDelay > 0 && game.running) {
-    ctx.fillStyle = "white";
-    ctx.font = "bold 60px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(Math.ceil(game.startDelay), W/2, H/2);
-  }
-
-  updateHUD();
 }
 
-function drawSprite(img, x, y, size) {
-  const s = size * scale;
-  ctx.drawImage(img, x - s/2, y - s, s, s);
-}
-
-function updateHUD() {
-  const t = Math.max(0, game.time);
-  const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60).toString().padStart(2,"0");
-
-  document.getElementById("centerTimer").textContent = `${m}:${s}`;
-  document.getElementById("score").textContent = Math.floor(game.score);
-}
-
-function rand(a,b){ return Math.random()*(b-a)+a; }
-
-let last = 0;
-function loop(ts) {
-  const dt = (ts - last) / 1000;
-  last = ts;
-
+/* LOOP */
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05,(now-last)/1000);
+  last = now;
   update(dt);
-  draw();
-
+  render();
   requestAnimationFrame(loop);
 }
-
 requestAnimationFrame(loop);
+
+/* MISSION CONTROL */
+function startCountdown(){
+  let c=3;
+  const ct=document.getElementById("centerText");
+  ct.style.display="block";
+  ct.textContent=c;
+
+  const id=setInterval(()=>{
+    c--;
+    if(c<=0){
+      clearInterval(id);
+      ct.style.display="none";
+      beginMission();
+    } else {
+      ct.textContent=c;
+    }
+  },1000);
+}
+
+function beginMission(){
+  running=true;
+  missionTime=TOTAL_TIME;
+  score=0;
+  enemies=[];
+  hollie.mode="idle";
+  hollie.modeTimer=0;
+  document.getElementById("score").textContent="0";
+
+  try{
+    music.currentTime=0;
+    music.play();
+  }catch(e){}
+}
+
+function endMission(){
+  running=false;
+  document.getElementById("centerText").style.display="block";
+  document.getElementById("centerText").textContent="DONE!";
+  try{ music.pause(); }catch(e){}
+}
+
+/* BUTTONS */
+document.getElementById("startBtn").onclick=()=>{
+  if(!running) startCountdown();
+};
+document.getElementById("resetBtn").onclick=()=>{
+  running=false;
+  missionTime=TOTAL_TIME;
+  score=0;
+  enemies=[];
+  hollie.mode="idle";
+  hollie.modeTimer=0;
+  document.getElementById("score").textContent="0";
+  document.getElementById("timer").textContent="02:00";
+  document.getElementById("centerText").style.display="none";
+  document.getElementById("hitText").style.display="none";
+  try{ music.pause(); }catch(e){}
+};
 </script>
 
 </body>
