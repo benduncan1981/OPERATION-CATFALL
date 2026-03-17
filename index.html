@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toothbrush Timer Game</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: black;
+  font-family: sans-serif;
+}
+
+canvas {
+  display: block;
+}
+
+#ui {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  color: white;
+  font-weight: bold;
+}
+
+#topHUD {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-size: 18px;
+}
+
+#centerTimer {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#bottomUI {
+  position: fixed;
+  bottom: 10px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+  <div id="topHUD">
+    <div>PILOT / HOLLIE</div>
+    <div id="centerTimer">2:00</div>
+    <div id="score">0</div>
+  </div>
+</div>
+
+<div id="bottomUI">
+  <button id="startBtn">START</button>
+  <button id="resetBtn">RESET</button>
+</div>
+
+<audio id="music" src="audio/EVEN FASTER.wav" loop></audio>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let W, H, scale;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  scale = Math.min(W / 800, H / 600);
+}
+window.addEventListener("resize", resize);
+resize();
+
+const assets = {
+  bg: load("assets/sprites/background.png"),
+  idle_front: load("assets/sprites/idle_front.png"),
+  idle_left: load("assets/sprites/idle_left.png"),
+  idle_right: load("assets/sprites/idle_right.png"),
+  hit: load("assets/sprites/hit_reaction_comical.png"),
+  cats: [
+    load("assets/sprites/Cat1.png"),
+    load("assets/sprites/Cat2.png"),
+    load("assets/sprites/Cat3.png"),
+    load("assets/sprites/Cat4.png"),
+  ]
+};
+
+function load(src) {
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+
+const music = document.getElementById("music");
+
+let game = resetState();
+
+function resetState() {
+  return {
+    running: false,
+    startDelay: 3,
+    time: 120,
+    score: 0,
+    hollie: {
+      x: W / 2,
+      targetX: W / 2,
+      speed: 100,
+      sprite: "idle_front",
+      hitTimer: 0,
+      moveTimer: 0
+    },
+    cats: [],
+    spawnTimer: 0,
+    shake: 0,
+    done: false
+  };
+}
+
+document.getElementById("startBtn").onclick = () => {
+  game = resetState();
+  game.running = true;
+  music.currentTime = 0;
+  music.play().catch(()=>{});
+};
+
+document.getElementById("resetBtn").onclick = () => {
+  music.pause();
+  game = resetState();
+};
+
+function spawnCat() {
+  const x = rand(W * 0.1, W * 0.9);
+  const speed = rand(140, 260);
+  const img = assets.cats[Math.floor(Math.random()*4)];
+  game.cats.push({ x, y: -50, speed, img });
+}
+
+function update(dt) {
+  if (!game.running) return;
+
+  if (game.startDelay > 0) {
+    game.startDelay -= dt;
+    return;
+  }
+
+  if (game.time <= 0) {
+    game.done = true;
+    music.pause();
+    return;
+  }
+
+  game.time -= dt;
+  game.score += dt * 10;
+
+  const h = game.hollie;
+
+  // Movement target logic
+  h.moveTimer -= dt;
+  if (h.moveTimer <= 0) {
+    h.targetX = rand(W * 0.1, W * 0.9);
+    h.speed = rand(80, 180);
+    h.moveTimer = rand(0.4, 1.4);
+  }
+
+  let dx = h.targetX - h.x;
+
+  if (Math.abs(dx) < 10) {
+    if (Math.random() < 0.02) {
+      h.moveTimer = rand(0.2, 0.5);
+    }
+    h.sprite = "idle_front";
+  } else {
+    const dir = Math.sign(dx);
+    h.x += dir * h.speed * dt;
+
+    if (dir > 0) h.sprite = "idle_right";
+    else h.sprite = "idle_left";
+  }
+
+  // Cats
+  game.spawnTimer -= dt;
+  if (game.spawnTimer <= 0) {
+    spawnCat();
+    game.spawnTimer = rand(0.3, 0.7);
+  }
+
+  const hollieY = H - 120 * scale;
+
+  game.cats.forEach(cat => {
+    cat.y += cat.speed * dt;
+
+    if (cat.y >= hollieY) {
+      hit();
+      cat.dead = true;
+    }
+  });
+
+  game.cats = game.cats.filter(c => !c.dead);
+
+  if (h.hitTimer > 0) {
+    h.hitTimer -= dt;
+    h.sprite = "hit";
+  }
+
+  if (game.shake > 0) {
+    game.shake -= dt;
+  }
+
+  game.score = Math.max(0, game.score);
+}
+
+function hit() {
+  game.hollie.hitTimer = 0.3;
+  game.score -= 5;
+  game.shake = 0.2;
+}
+
+function draw() {
+  ctx.save();
+
+  if (game.shake > 0) {
+    ctx.translate(rand(-5,5), rand(-5,5));
+  }
+
+  ctx.drawImage(assets.bg, 0, 0, W, H);
+
+  // Cats
+  game.cats.forEach(cat => {
+    drawSprite(cat.img, cat.x, cat.y, 50);
+  });
+
+  // Hollie
+  const h = game.hollie;
+  let img = assets[h.sprite];
+  const y = H - 100 * scale;
+  drawSprite(img, h.x, y, 90);
+
+  // HIT text
+  if (h.hitTimer > 0) {
+    ctx.fillStyle = "red";
+    ctx.font = "bold 40px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("HIT!", h.x, y - 80);
+  }
+
+  ctx.restore();
+
+  // DONE
+  if (game.done) {
+    ctx.fillStyle = "white";
+    ctx.font = "bold 60px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("DONE!", W/2, H/2);
+  }
+
+  // Countdown text
+  if (game.startDelay > 0 && game.running) {
+    ctx.fillStyle = "white";
+    ctx.font = "bold 60px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(Math.ceil(game.startDelay), W/2, H/2);
+  }
+
+  updateHUD();
+}
+
+function drawSprite(img, x, y, size) {
+  const s = size * scale;
+  ctx.drawImage(img, x - s/2, y - s, s, s);
+}
+
+function updateHUD() {
+  const t = Math.max(0, game.time);
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2,"0");
+
+  document.getElementById("centerTimer").textContent = `${m}:${s}`;
+  document.getElementById("score").textContent = Math.floor(game.score);
+}
+
+function rand(a,b){ return Math.random()*(b-a)+a; }
+
+let last = 0;
+function loop(ts) {
+  const dt = (ts - last) / 1000;
+  last = ts;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
