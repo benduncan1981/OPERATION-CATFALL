@@ -408,6 +408,179 @@ document.getElementById("resetBtn").onclick=()=>{
   document.getElementById("hitText").style.display="none";
   try{ music.pause(); }catch(e){}
 };
+  <script>
+// ---------------------------------------------------------
+// JENNIFER BOSS MODULE (self-contained, plugs into your game)
+// ---------------------------------------------------------
+
+// Load Jennifer sprite
+const bossJennifer = new Image();
+bossJennifer.src = "IMG_1476.png";
+
+// Boss state
+let bossActive = false;
+let boss = {
+  x: 0,
+  y: -200,
+  vx: 40,
+  vy: 20,
+  scale: 0.22, // same as Hollie on desktop
+  patience: 30, // 30 seconds to survive
+  attackTimer: 0,
+  shockwaveTimer: 0,
+  orbs: []
+};
+
+// Draw patience bar
+function drawBossBar() {
+  const w = canvas.width * 0.6;
+  const h = 18;
+  const x = (canvas.width - w) / 2;
+  const y = 20;
+
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(x, y, w, h);
+
+  const pct = Math.max(0, boss.patience / 30);
+  ctx.fillStyle = "#b36bff";
+  ctx.fillRect(x, y, w * pct, h);
+
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+}
+
+// Spawn purple orb attack
+function spawnOrb() {
+  boss.orbs.push({
+    x: boss.x,
+    y: boss.y + 40,
+    vy: 180,
+    r: 10
+  });
+}
+
+// Draw orbs
+function drawOrbs(dt) {
+  ctx.fillStyle = "#c08cff";
+  for (let i = boss.orbs.length - 1; i >= 0; i--) {
+    const o = boss.orbs[i];
+    o.y += o.vy * dt;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (o.y > canvas.height + 50) {
+      boss.orbs.splice(i, 1);
+    }
+  }
+}
+
+// Shockwave attack
+function drawShockwave() {
+  if (boss.shockwaveTimer > 0) {
+    const t = boss.shockwaveTimer;
+    const radius = (1 - t / 1.2) * canvas.width;
+
+    const grad = ctx.createRadialGradient(
+      boss.x, boss.y, 10,
+      boss.x, boss.y, radius
+    );
+    grad.addColorStop(0, "rgba(200,150,255,0.4)");
+    grad.addColorStop(1, "rgba(200,150,255,0)");
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(boss.x, boss.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Update boss logic
+function updateBoss(dt) {
+  if (!bossActive) return;
+
+  // Drain patience
+  boss.patience -= dt;
+  if (boss.patience <= 0) {
+    bossActive = false;
+    score += 500; // bonus
+    return;
+  }
+
+  // Entrance movement
+  if (boss.y < canvas.height * 0.35) {
+    boss.y += boss.vy * dt;
+  } else {
+    // Horizontal drift
+    boss.x += boss.vx * dt;
+    if (boss.x < canvas.width * 0.2 || boss.x > canvas.width * 0.8) {
+      boss.vx *= -1;
+    }
+  }
+
+  // Attacks
+  boss.attackTimer -= dt;
+  if (boss.attackTimer <= 0) {
+    spawnOrb();
+    boss.attackTimer = 0.8 + Math.random() * 0.6;
+  }
+
+  // Shockwave occasionally
+  if (Math.random() < 0.002) {
+    boss.shockwaveTimer = 1.2;
+  }
+
+  if (boss.shockwaveTimer > 0) {
+    boss.shockwaveTimer -= dt;
+  }
+}
+
+// Draw boss
+function drawBoss() {
+  if (!bossActive) return;
+
+  // Draw Jennifer
+  if (bossJennifer.complete) {
+    const w = bossJennifer.width * boss.scale;
+    const h = bossJennifer.height * boss.scale;
+    ctx.drawImage(bossJennifer, boss.x - w / 2, boss.y - h / 2, w, h);
+  }
+
+  // Draw attacks
+  drawOrbs(1 / 60);
+  drawShockwave();
+
+  // Draw patience bar
+  drawBossBar();
+}
+
+// Hook into your existing update loop
+const originalUpdate = update;
+update = function(dt) {
+  originalUpdate(dt);
+
+  // Trigger boss at 30 seconds
+  if (!bossActive && missionTime <= 30 && running) {
+    bossActive = true;
+    boss.x = canvas.width / 2;
+    boss.y = -200;
+    boss.patience = 30;
+    boss.orbs = [];
+  }
+
+  updateBoss(dt);
+};
+
+// Hook into your existing render loop
+const originalRender = render;
+render = function() {
+  originalRender();
+  drawBoss();
+};
+</script>
+
+
 </script>
 
 </body>
