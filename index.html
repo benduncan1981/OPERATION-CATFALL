@@ -2,8 +2,8 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>CAT INVADERS — Toothbrush Timer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Cat Invaders</title>
 
 <style>
 html,body{
@@ -13,7 +13,6 @@ html,body{
   background:#000;
   font-family:"Segoe UI",sans-serif;
   color:white;
-  text-transform:uppercase;
 }
 #game{
   position:fixed;
@@ -35,18 +34,6 @@ html,body{
   border:1px solid rgba(255,255,255,0.2);
   font-weight:700;
 }
-#hitText{
-  position:fixed;
-  left:50%;
-  bottom:22%;
-  transform:translateX(-50%);
-  font-size:2.4rem;
-  font-weight:900;
-  color:#ff4f6d;
-  text-shadow:0 0 20px #ff4f6d;
-  display:none;
-  z-index:20;
-}
 #centerText{
   position:fixed;
   left:50%;
@@ -56,6 +43,18 @@ html,body{
   font-weight:900;
   color:#ffe66d;
   text-shadow:0 0 20px #ffe66d;
+  display:none;
+  z-index:20;
+}
+#hitText{
+  position:fixed;
+  left:50%;
+  bottom:22%;
+  transform:translateX(-50%);
+  font-size:2.4rem;
+  font-weight:900;
+  color:#ff4f6d;
+  text-shadow:0 0 20px #ff4f6d;
   display:none;
   z-index:20;
 }
@@ -99,8 +98,8 @@ html,body{
   </div>
 </div>
 
-<div id="hitText">HIT!</div>
 <div id="centerText">3</div>
+<div id="hitText">HIT!</div>
 
 <div class="controls">
   <button id="startBtn" class="btn">START</button>
@@ -108,38 +107,39 @@ html,body{
 </div>
 
 <script>
-/* SPRITES — all loaded from ROOT */
-const spritePaths = {
-  background: "background.png",
-  idle_front: "idle_front.png",
-  idle_left: "idle_left.png",
-  idle_right: "idle_right.png",
-  hit: "hit_reaction_comical.png",
-  Cat1: "Cat1.png",
-  Cat2: "Cat2.png",
-  Cat3: "Cat3.png",
-  Cat4: "Cat4.png"
+// ---------------------------------------------------------
+// SPRITES
+// ---------------------------------------------------------
+const sprites = {
+  background: new Image(),
+  idle_front: new Image(),
+  idle_left: new Image(),
+  idle_right: new Image(),
+  hit: new Image(),
+  Cat1: new Image(),
+  Cat2: new Image(),
+  Cat3: new Image(),
+  Cat4: new Image(),
+  boss: new Image()
 };
 
-const sprites = {};
-let toLoad = Object.keys(spritePaths).length;
-let loaded = false;
+sprites.background.src = "background.png";
+sprites.idle_front.src = "idle_front.png";
+sprites.idle_left.src = "idle_left.png";
+sprites.idle_right.src = "idle_right.png";
+sprites.hit.src = "hit_reaction_comical.png";
+sprites.Cat1.src = "Cat1.png";
+sprites.Cat2.src = "Cat2.png";
+sprites.Cat3.src = "Cat3.png";
+sprites.Cat4.src = "Cat4.png";
+sprites.boss.src = "IMG_1476.png";
 
-for (const k in spritePaths){
-  const img = new Image();
-  img.src = spritePaths[k];
-  img.onload = () => { toLoad--; if(toLoad===0) loaded=true; };
-  sprites[k] = img;
-}
-
-/* MUSIC — also loaded from ROOT */
-const music = new Audio("EVEN FASTER.wav");
-music.loop = true;
-music.volume = 0.7;
-
-/* CANVAS */
+// ---------------------------------------------------------
+// CANVAS
+// ---------------------------------------------------------
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+
 function resize(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -147,13 +147,11 @@ function resize(){
 window.addEventListener("resize",resize);
 resize();
 
-/* GAME STATE */
-const TOTAL_TIME = 120;
-const SCORE_PER_SECOND = 10;
-const SCORE_PER_HIT = 5;
-
+// ---------------------------------------------------------
+// GAME STATE
+// ---------------------------------------------------------
 let running = false;
-let missionTime = TOTAL_TIME;
+let missionTime = 120;
 let score = 0;
 
 let enemies = [];
@@ -161,11 +159,12 @@ let spawnTimer = 0;
 
 let shakeTime = 0;
 
-/* LIMITS */
 function leftLimit(){ return canvas.width * 0.10; }
 function rightLimit(){ return canvas.width * 0.90; }
 
-/* HOLLIE */
+// ---------------------------------------------------------
+// HOLLIE
+// ---------------------------------------------------------
 const hollie = {
   x: canvas.width/2,
   y: 0,
@@ -178,10 +177,14 @@ const hollie = {
   scale: canvas.width < 600 ? 0.18 : 0.22
 };
 
-/* RANDOM */
+// ---------------------------------------------------------
+// RANDOM
+// ---------------------------------------------------------
 function rand(min,max){ return min + Math.random()*(max-min); }
 
-/* CATS */
+// ---------------------------------------------------------
+// CATS
+// ---------------------------------------------------------
 const catKeys = ["Cat1","Cat2","Cat3","Cat4"];
 
 function spawnCat(){
@@ -197,7 +200,7 @@ function spawnCat(){
 
 function drawCat(e){
   const img = sprites[e.spriteKey];
-  if(!img || !img.complete) return;
+  if(!img.complete) return;
 
   const w = img.width * e.scale;
   const h = img.height * e.scale;
@@ -205,7 +208,9 @@ function drawCat(e){
   ctx.drawImage(img, e.x - w/2, e.y - h/2, w, h);
 }
 
-/* DRAW HOLLIE */
+// ---------------------------------------------------------
+// DRAW HOLLIE
+// ---------------------------------------------------------
 function drawHollie(){
   let img;
 
@@ -217,7 +222,7 @@ function drawHollie(){
     else img = sprites.idle_front;
   }
 
-  if(!img || !img.complete) return;
+  if(!img.complete) return;
 
   const w = img.width * hollie.scale;
   const h = img.height * hollie.scale;
@@ -227,7 +232,9 @@ function drawHollie(){
   ctx.drawImage(img, hollie.x-w/2, hollie.y, w, h);
 }
 
-/* RANDOM MOVEMENT */
+// ---------------------------------------------------------
+// RANDOM MOVEMENT
+// ---------------------------------------------------------
 function updateHollie(dt){
   hollie.changeTimer -= dt;
   if(hollie.changeTimer <= 0){
@@ -248,190 +255,22 @@ function updateHollie(dt){
   if(hollie.x > rightLimit()) hollie.x = rightLimit();
 }
 
-/* UPDATE */
-function update(dt){
-  if(!running) return;
-
-  missionTime -= dt;
-  if(missionTime < 0) missionTime = 0;
-
-  const t = Math.floor(missionTime);
-  const m = Math.floor(t/60);
-  const s = t%60;
-  document.getElementById("timer").textContent =
-    `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-
-  score += SCORE_PER_SECOND * dt;
-  if(score < 0) score = 0;
-  document.getElementById("score").textContent = Math.floor(score);
-
-  updateHollie(dt);
-
-  spawnTimer -= dt;
-  if(spawnTimer <= 0){
-    spawnCat();
-    spawnTimer = 0.7;
-  }
-
-  if(hollie.mode==="hit"){
-    hollie.modeTimer -= dt;
-    if(hollie.modeTimer <= 0){
-      hollie.mode="idle";
-      document.getElementById("hitText").style.display="none";
-    }
-  }
-
-  const hitLine = hollie.y + 20;
-
-  for(let i=enemies.length-1;i>=0;i--){
-    const e = enemies[i];
-    e.y += e.vy*dt;
-
-    if(e.y >= hitLine){
-      enemies.splice(i,1);
-
-      score -= SCORE_PER_HIT;
-      if(score < 0) score = 0;
-      document.getElementById("score").textContent = Math.floor(score);
-
-      hollie.mode="hit";
-      hollie.modeTimer=0.3;
-      document.getElementById("hitText").style.display="block";
-
-      shakeTime=0.2;
-      continue;
-    }
-
-    if(e.y > canvas.height + 80){
-      enemies.splice(i,1);
-    }
-  }
-
-  if(missionTime <= 0){
-    endMission();
-  }
-}
-
-/* RENDER */
-function render(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  let ox=0, oy=0;
-  if(shakeTime>0){
-    shakeTime -= 1/60;
-    ox = (Math.random()*2-1)*6;
-    oy = (Math.random()*2-1)*6;
-  }
-  ctx.save();
-  ctx.translate(ox,oy);
-
-  const bg = sprites.background;
-  if(bg && bg.complete){
-    const scale = Math.max(canvas.width/bg.width, canvas.height/bg.height);
-    const bw = bg.width*scale;
-    const bh = bg.height*scale;
-    ctx.drawImage(bg, (canvas.width-bw)/2, (canvas.height-bh)/2, bw, bh);
-  }
-
-  drawHollie();
-  enemies.forEach(drawCat);
-
-  ctx.restore();
-}
-
-/* LOOP */
-let last = performance.now();
-function loop(now){
-  const dt = Math.min(0.05,(now-last)/1000);
-  last = now;
-  update(dt);
-  render();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-
-/* MISSION CONTROL */
-function startCountdown(){
-  let c=3;
-  const ct=document.getElementById("centerText");
-  ct.style.display="block";
-  ct.textContent=c;
-
-  const id=setInterval(()=>{
-    c--;
-    if(c<=0){
-      clearInterval(id);
-      ct.style.display="none";
-      beginMission();
-    } else {
-      ct.textContent=c;
-    }
-  },1000);
-}
-
-function beginMission(){
-  running=true;
-  missionTime=TOTAL_TIME;
-  score=0;
-  enemies=[];
-  hollie.mode="idle";
-  hollie.modeTimer=0;
-  document.getElementById("score").textContent="0";
-
-  try{
-    music.currentTime=0;
-    music.play();
-  }catch(e){}
-}
-
-function endMission(){
-  running=false;
-  document.getElementById("centerText").style.display="block";
-  document.getElementById("centerText").textContent="DONE!";
-  try{ music.pause(); }catch(e){}
-}
-
-/* BUTTONS */
-document.getElementById("startBtn").onclick=()=>{
-  if(!running) startCountdown();
-};
-document.getElementById("resetBtn").onclick=()=>{
-  running=false;
-  missionTime=TOTAL_TIME;
-  score=0;
-  enemies=[];
-  hollie.mode="idle";
-  hollie.modeTimer=0;
-  document.getElementById("score").textContent="0";
-  document.getElementById("timer").textContent="02:00";
-  document.getElementById("centerText").style.display="none";
-  document.getElementById("hitText").style.display="none";
-  try{ music.pause(); }catch(e){}
-};
-  <script>
 // ---------------------------------------------------------
-// JENNIFER BOSS MODULE (self-contained, plugs into your game)
+// BOSS: JENNIFER
 // ---------------------------------------------------------
-
-// Load Jennifer sprite
-const bossJennifer = new Image();
-bossJennifer.src = "IMG_1476.png";
-
-// Boss state
 let bossActive = false;
 let boss = {
   x: 0,
   y: -200,
   vx: 40,
   vy: 20,
-  scale: 0.22, // same as Hollie on desktop
-  patience: 30, // 30 seconds to survive
+  scale: hollie.scale,
+  patience: 30,
   attackTimer: 0,
   shockwaveTimer: 0,
   orbs: []
 };
 
-// Draw patience bar
 function drawBossBar() {
   const w = canvas.width * 0.6;
   const h = 18;
@@ -450,7 +289,6 @@ function drawBossBar() {
   ctx.strokeRect(x, y, w, h);
 }
 
-// Spawn purple orb attack
 function spawnOrb() {
   boss.orbs.push({
     x: boss.x,
@@ -460,7 +298,6 @@ function spawnOrb() {
   });
 }
 
-// Draw orbs
 function drawOrbs(dt) {
   ctx.fillStyle = "#c08cff";
   for (let i = boss.orbs.length - 1; i >= 0; i--) {
@@ -476,7 +313,6 @@ function drawOrbs(dt) {
   }
 }
 
-// Shockwave attack
 function drawShockwave() {
   if (boss.shockwaveTimer > 0) {
     const t = boss.shockwaveTimer;
@@ -496,37 +332,31 @@ function drawShockwave() {
   }
 }
 
-// Update boss logic
 function updateBoss(dt) {
   if (!bossActive) return;
 
-  // Drain patience
   boss.patience -= dt;
   if (boss.patience <= 0) {
     bossActive = false;
-    score += 500; // bonus
+    score += 500;
     return;
   }
 
-  // Entrance movement
   if (boss.y < canvas.height * 0.35) {
     boss.y += boss.vy * dt;
   } else {
-    // Horizontal drift
     boss.x += boss.vx * dt;
     if (boss.x < canvas.width * 0.2 || boss.x > canvas.width * 0.8) {
       boss.vx *= -1;
     }
   }
 
-  // Attacks
   boss.attackTimer -= dt;
   if (boss.attackTimer <= 0) {
     spawnOrb();
     boss.attackTimer = 0.8 + Math.random() * 0.6;
   }
 
-  // Shockwave occasionally
   if (Math.random() < 0.002) {
     boss.shockwaveTimer = 1.2;
   }
@@ -536,32 +366,42 @@ function updateBoss(dt) {
   }
 }
 
-// Draw boss
 function drawBoss() {
   if (!bossActive) return;
 
-  // Draw Jennifer
-  if (bossJennifer.complete) {
-    const w = bossJennifer.width * boss.scale;
-    const h = bossJennifer.height * boss.scale;
-    ctx.drawImage(bossJennifer, boss.x - w / 2, boss.y - h / 2, w, h);
+  const img = sprites.boss;
+  if (img.complete) {
+    const w = img.width * boss.scale;
+    const h = img.height * boss.scale;
+    ctx.drawImage(img, boss.x - w/2, boss.y - h/2, w, h);
   }
 
-  // Draw attacks
-  drawOrbs(1 / 60);
+  drawOrbs(1/60);
   drawShockwave();
-
-  // Draw patience bar
   drawBossBar();
 }
 
-// Hook into your existing update loop
-const originalUpdate = update;
-update = function(dt) {
-  originalUpdate(dt);
+// ---------------------------------------------------------
+// UPDATE LOOP
+// ---------------------------------------------------------
+function update(dt){
+  if(!running) return;
 
-  // Trigger boss at 30 seconds
-  if (!bossActive && missionTime <= 30 && running) {
+  missionTime -= dt;
+  if(missionTime < 0) missionTime = 0;
+
+  const t = Math.floor(missionTime);
+  const m = Math.floor(t/60);
+  const s = t%60;
+  document.getElementById("timer").textContent =
+    `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+
+  score += 10 * dt;
+  document.getElementById("score").textContent = Math.floor(score);
+
+  updateHollie(dt);
+
+  if (!bossActive && missionTime <= 30) {
     bossActive = true;
     boss.x = canvas.width / 2;
     boss.y = -200;
@@ -569,18 +409,123 @@ update = function(dt) {
     boss.orbs = [];
   }
 
+  if (!bossActive) {
+    spawnTimer -= dt;
+    if(spawnTimer <= 0){
+      spawnCat();
+      spawnTimer = 0.7;
+    }
+  }
+
+  if(hollie.mode==="hit"){
+    hollie.modeTimer -= dt;
+    if(hollie.modeTimer <= 0){
+      hollie.mode="idle";
+      document.getElementById("hitText").style.display="none";
+    }
+  }
+
+  const hitLine = hollie.y + 20;
+
+  if (!bossActive) {
+    for(let i=enemies.length-1;i>=0;i--){
+      const e = enemies[i];
+      e.y += e.vy*dt;
+
+      if(e.y >= hitLine){
+        enemies.splice(i,1);
+
+        score -= 5;
+        if(score < 0) score = 0;
+        document.getElementById("score").textContent = Math.floor(score);
+
+        hollie.mode="hit";
+        hollie.modeTimer=0.3;
+        document.getElementById("hitText").style.display="block";
+
+        shakeTime=0.2;
+        continue;
+      }
+
+      if(e.y > canvas.height + 80){
+        enemies.splice(i,1);
+      }
+    }
+  }
+
   updateBoss(dt);
-};
+}
 
-// Hook into your existing render loop
-const originalRender = render;
-render = function() {
-  originalRender();
+// ---------------------------------------------------------
+// RENDER LOOP
+// ---------------------------------------------------------
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  let ox=0, oy=0;
+  if(shakeTime>0){
+    shakeTime -= 1/60;
+    ox = (Math.random()*2-1)*6;
+    oy = (Math.random()*2-1)*6;
+  }
+  ctx.save();
+  ctx.translate(ox,oy);
+
+  const bg = sprites.background;
+  if(bg.complete){
+    const scale = Math.max(canvas.width/bg.width, canvas.height/bg.height);
+    const bw = bg.width*scale;
+    const bh = bg.height*scale;
+    ctx.drawImage(bg, (canvas.width-bw)/2, (canvas.height-bh)/2, bw, bh);
+  }
+
+  drawHollie();
+
+  if (!bossActive) enemies.forEach(drawCat);
+
   drawBoss();
+
+  ctx.restore();
+}
+
+// ---------------------------------------------------------
+// MAIN LOOP
+// ---------------------------------------------------------
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05,(now-last)/1000);
+  last = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------------------------------------------------------
+// CONTROLS
+// ---------------------------------------------------------
+document.getElementById("startBtn").onclick=()=>{
+  if(!running){
+    running=true;
+    missionTime=120;
+    score=0;
+    enemies=[];
+    bossActive=false;
+    document.getElementById("centerText").style.display="none";
+  }
 };
-</script>
 
-
+document.getElementById("resetBtn").onclick=()=>{
+  running=false;
+  missionTime=120;
+  score=0;
+  enemies=[];
+  bossActive=false;
+  document.getElementById("score").textContent="0";
+  document.getElementById("timer").textContent="02:00";
+  document.getElementById("centerText").style.display="none";
+  document.getElementById("hitText").style.display="none";
+};
 </script>
 
 </body>
